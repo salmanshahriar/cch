@@ -65,7 +65,7 @@ graph TD
     style Safety fill:#f38ba8,stroke:#d20f39,color:#11111b
 ```
 
-### ⚙️ Why is it fast?
+### ⚙️ Why is it so fast?
 
 1. **Zero Outbound I/O**: No LLM APIs, no third-party network fetches, and no database queries are performed in the critical path.
 2. **Precompiled Regex & Word Lists**: Keywords and regular expressions are precompiled once at module load, utilizing V8's optimized regex engine.

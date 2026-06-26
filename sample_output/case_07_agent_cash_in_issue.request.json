@@ -1,0 +1,14 @@
+{
+  "ticket_id": "TKT-008",
+  "complaint": "I deposited 3000 taka via an agent but my balance did not increase",
+  "transaction_history": [
+    {
+      "transaction_id": "TXN-8001",
+      "timestamp": "2026-04-14T11:00:00Z",
+      "type": "cash_in",
+      "amount": 3000,
+      "counterparty": "AGENT-22",
+      "status": "completed"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "ticket_id": "TKT-007",
+  "complaint": "My merchant settlement of 25000 taka is delayed for 3 days",
+  "user_type": "merchant",
+  "transaction_history": [
+    {
+      "transaction_id": "TXN-7001",
+      "timestamp": "2026-04-11T10:00:00Z",
+      "type": "settlement",
+      "amount": 25000,
+      "counterparty": "MERCH-77",
+      "status": "pending"
+    }
+  ]
+}

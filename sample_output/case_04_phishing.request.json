@@ -1,0 +1,14 @@
+{
+  "ticket_id": "TKT-004",
+  "complaint": "Someone called me and asked for my OTP and PIN. They said they were from your team.",
+  "transaction_history": [
+    {
+      "transaction_id": "TXN-4001",
+      "timestamp": "2026-04-14T09:00:00Z",
+      "type": "transfer",
+      "amount": 300,
+      "counterparty": "+8801711111111",
+      "status": "completed"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "ticket_id": "TKT-003",
+  "complaint": "Payment of 2000 taka failed but money was deducted",
+  "transaction_history": [
+    {
+      "transaction_id": "TXN-3001",
+      "timestamp": "2026-04-14T11:00:00Z",
+      "type": "payment",
+      "amount": 2000,
+      "counterparty": "MERCH-50",
+      "status": "completed"
+    }
+  ]
+}

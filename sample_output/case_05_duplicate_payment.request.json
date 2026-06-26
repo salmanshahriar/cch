@@ -1,0 +1,22 @@
+{
+  "ticket_id": "TKT-005",
+  "complaint": "I have been charged twice for the same order, 800 taka each",
+  "transaction_history": [
+    {
+      "transaction_id": "TXN-5001",
+      "timestamp": "2026-04-14T12:00:00Z",
+      "type": "payment",
+      "amount": 800,
+      "counterparty": "MERCH-12",
+      "status": "completed"
+    },
+    {
+      "transaction_id": "TXN-5002",
+      "timestamp": "2026-04-14T12:01:30Z",
+      "type": "payment",
+      "amount": 800,
+      "counterparty": "MERCH-12",
+      "status": "completed"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "ticket_id": "TKT-009",
+  "complaint": "আমি ২০০০ টাকা ভুল নম্বরে পাঠিয়ে দিয়েছি। টাকা ফেরত চাই।",
+  "language": "bn",
+  "transaction_history": [
+    {
+      "transaction_id": "TXN-9001",
+      "timestamp": "2026-04-14T13:00:00Z",
+      "type": "transfer",
+      "amount": 2000,
+      "counterparty": "+8801722222222",
+      "status": "completed"
+    }
+  ]
+}

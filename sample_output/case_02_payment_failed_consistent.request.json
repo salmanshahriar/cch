@@ -1,0 +1,14 @@
+{
+  "ticket_id": "TKT-002",
+  "complaint": "I tried to pay 1500 taka to a merchant but the payment failed and my balance was deducted.",
+  "transaction_history": [
+    {
+      "transaction_id": "TXN-2001",
+      "timestamp": "2026-04-14T10:00:00Z",
+      "type": "payment",
+      "amount": 1500,
+      "counterparty": "MERCH-99",
+      "status": "failed"
+    }
+  ]
+}

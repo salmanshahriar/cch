@@ -15,12 +15,16 @@ This service implements the **QueueStorm Preliminary Round** problem statement.
 # install deps (uses bun; bun.lock is committed)
 bun install
 
-# run the service (defaults to :3000)
+# PORT is required — the service refuses to start without it. Set it via .env
+# (recommended) or on the command line:
+echo "PORT=8000" > .env
+
+# run the service (binds to :8000)
 bun run dev
 
 # in another shell
-curl http://localhost:3000/health
-curl -X POST http://localhost:3000/analyze-ticket \
+curl http://localhost:8000/health
+curl -X POST http://localhost:8000/analyze-ticket \
   -H "Content-Type: application/json" \
   -d @sample_output/case_01_wrong_transfer.request.json
 ```
@@ -207,7 +211,10 @@ RUNBOOK.md          Step-by-step runbook for judges
 
 ## Environment variables
 
-None required. The service binds to `PORT` (default `3000`) if set.
+None required apart from `PORT`. The service binds to whatever port `PORT`
+specifies (no built-in default — it exits with an error if `PORT` is missing
+or invalid, so misconfiguration fails loudly). Copy `.env.example` to `.env`
+and edit, or pass `PORT=8000` on the command line.
 
 See `.env.example`.
 

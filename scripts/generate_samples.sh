@@ -5,7 +5,7 @@
 set -euo pipefail
 OUT=/home/amin/cch/sample_output
 mkdir -p "$OUT"
-BASE=http://localhost:3000
+BASE=http://localhost:8000
 
 post_case () {
   local name="$1"

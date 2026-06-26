@@ -8,6 +8,8 @@ type Language = NonNullable<AnalyzeRequest["language"]>;
 type Channel = NonNullable<AnalyzeRequest["channel"]>;
 type UserType = NonNullable<AnalyzeRequest["user_type"]>;
 
+// Allow-lists as Sets for O(1) lookup. The joined string is cached so error
+// messages don't rebuild it on every miss.
 const VALID_CHANNELS = new Set<Channel>([
   "in_app_chat",
   "call_center",
@@ -32,6 +34,13 @@ const VALID_TXN_STATUSES = new Set<TransactionStatus>([
   "reversed",
 ]);
 
+// Pre-rendered error message suffixes (avoids re-joining the array per request).
+const ALLOWED_CHANNELS = [...VALID_CHANNELS].join(", ");
+const ALLOWED_USER_TYPES = [...VALID_USER_TYPES].join(", ");
+const ALLOWED_LANGUAGES = [...VALID_LANGUAGES].join(", ");
+const ALLOWED_TXN_TYPES = [...VALID_TXN_TYPES].join(", ");
+const ALLOWED_TXN_STATUSES = [...VALID_TXN_STATUSES].join(", ");
+
 export interface ValidationOk {
   ok: true;
   value: AnalyzeRequest;
@@ -47,91 +56,95 @@ function isObj(x: unknown): x is Record<string, unknown> {
   return typeof x === "object" && x !== null && !Array.isArray(x);
 }
 
-function readEnum<T extends string>(
+// Returns [ok, status, error] instead of throwing — avoids throw/catch stack
+// trace allocations on the hot validation path. Most valid requests skip this
+// branch entirely. Optional: `undefined` is treated as a valid absent value.
+function checkEnum<T extends string>(
   field: string,
   raw: unknown,
-  allowed: Set<T>
-): T {
+  allowed: Set<T>,
+  allowedList: string
+): { ok: true; value: T | undefined } | { ok: false; status: 400; error: string } {
+  if (raw === undefined) return { ok: true, value: undefined };
   if (typeof raw !== "string" || !allowed.has(raw as T)) {
-    throw new ValidationError(400, `Invalid '${field}'. Allowed: ${[...allowed].join(", ")}.`);
+    return { ok: false, status: 400, error: `Invalid '${field}'. Allowed: ${allowedList}.` };
   }
-  return raw as T;
+  return { ok: true, value: raw as T };
 }
 
-function readOptionalEnum<T extends string>(
-  field: string,
-  raw: unknown,
-  allowed: Set<T>
-): T | undefined {
-  if (raw === undefined) return undefined;
-  return readEnum(field, raw, allowed);
-}
-
-class ValidationError extends Error {
-  constructor(public status: 400 | 422, message: string) {
-    super(message);
-  }
+function err(status: 400 | 422, message: string): ValidationErr {
+  return { ok: false, status, error: message };
 }
 
 export function validateAnalyzeRequest(body: unknown): ValidationResult {
-  try {
-    if (!isObj(body)) throw new ValidationError(400, "Request body must be a JSON object.");
-    const { ticket_id, complaint } = body;
+  if (!isObj(body)) return err(400, "Request body must be a JSON object.");
 
-    if (typeof ticket_id !== "string" || ticket_id.trim().length === 0)
-      throw new ValidationError(400, "Missing or invalid required field 'ticket_id'.");
-    if (typeof complaint !== "string" || complaint.trim().length === 0)
-      throw new ValidationError(400, "Missing or invalid required field 'complaint'.");
-    if (complaint.trim().length < 3)
-      throw new ValidationError(422, "'complaint' is too short to be meaningful.");
+  const ticket_id = body.ticket_id;
+  const complaint = body.complaint;
+  if (typeof ticket_id !== "string") return err(400, "Missing or invalid required field 'ticket_id'.");
+  const trimmedTicket = ticket_id.trim();
+  if (trimmedTicket.length === 0) return err(400, "Missing or invalid required field 'ticket_id'.");
+  if (typeof complaint !== "string") return err(400, "Missing or invalid required field 'complaint'.");
+  const trimmedComplaint = complaint.trim();
+  if (trimmedComplaint.length === 0) return err(400, "Missing or invalid required field 'complaint'.");
+  if (trimmedComplaint.length < 3) return err(422, "'complaint' is too short to be meaningful.");
 
-    const language = readOptionalEnum("language", body.language, VALID_LANGUAGES);
-    const channel = readOptionalEnum("channel", body.channel, VALID_CHANNELS);
-    const user_type = readOptionalEnum("user_type", body.user_type, VALID_USER_TYPES);
+  const languageRaw = checkEnum("language", body.language, VALID_LANGUAGES, ALLOWED_LANGUAGES);
+  if (!languageRaw.ok) return languageRaw;
+  const channelRaw = checkEnum("channel", body.channel, VALID_CHANNELS, ALLOWED_CHANNELS);
+  if (!channelRaw.ok) return channelRaw;
+  const userTypeRaw = checkEnum("user_type", body.user_type, VALID_USER_TYPES, ALLOWED_USER_TYPES);
+  if (!userTypeRaw.ok) return userTypeRaw;
 
-    const transaction_history = readTransactionHistory(body.transaction_history);
+  const txResult = readTransactionHistory(body.transaction_history);
+  if (!txResult.ok) return txResult;
 
-    const campaign_context =
-      typeof body.campaign_context === "string" ? body.campaign_context : undefined;
-    const metadata = isObj(body.metadata) ? body.metadata : undefined;
+  const campaign_context =
+    typeof body.campaign_context === "string" ? body.campaign_context : undefined;
+  const metadata = isObj(body.metadata) ? body.metadata : undefined;
 
-    const out: AnalyzeRequest = {
-      ticket_id: ticket_id.trim(),
+  return {
+    ok: true,
+    value: {
+      ticket_id: trimmedTicket,
       complaint,
-      language,
-      channel,
-      user_type,
+      language: languageRaw.value,
+      channel: channelRaw.value,
+      user_type: userTypeRaw.value,
       campaign_context,
-      transaction_history,
+      transaction_history: txResult.value,
       metadata,
-    };
-    return { ok: true, value: out };
-  } catch (e) {
-    if (e instanceof ValidationError) return { ok: false, status: e.status, error: e.message };
-    throw e;
-  }
+    },
+  };
 }
 
-function readTransactionHistory(raw: unknown): Transaction[] | undefined {
-  if (raw === undefined) return undefined;
-  if (!Array.isArray(raw))
-    throw new ValidationError(400, "'transaction_history' must be an array.");
+function readTransactionHistory(
+  raw: unknown
+): { ok: true; value: Transaction[] | undefined } | ValidationErr {
+  if (raw === undefined) return { ok: true, value: undefined };
+  if (!Array.isArray(raw)) return err(400, "'transaction_history' must be an array.");
   const txns: Transaction[] = [];
-  raw.forEach((t, i) => {
-    if (!isObj(t))
-      throw new ValidationError(400, `transaction_history[${i}] must be an object.`);
+  for (let i = 0; i < raw.length; i++) {
+    const t = raw[i];
+    if (!isObj(t)) return err(400, `transaction_history[${i}] must be an object.`);
     if (typeof t.transaction_id !== "string")
-      throw new ValidationError(400, `transaction_history[${i}].transaction_id must be a string.`);
+      return err(400, `transaction_history[${i}].transaction_id must be a string.`);
     if (typeof t.timestamp !== "string")
-      throw new ValidationError(400, `transaction_history[${i}].timestamp must be an ISO 8601 string.`);
+      return err(400, `transaction_history[${i}].timestamp must be an ISO 8601 string.`);
     if (typeof t.type !== "string" || !VALID_TXN_TYPES.has(t.type as TransactionType))
-      throw new ValidationError(400, `transaction_history[${i}].type is invalid.`);
+      return err(400, `transaction_history[${i}].type is invalid.`);
     if (typeof t.amount !== "number" || !Number.isFinite(t.amount))
-      throw new ValidationError(400, `transaction_history[${i}].amount must be a number.`);
-    const status =
-      t.status === undefined
-        ? "completed" as TransactionStatus
-        : readEnum(`transaction_history[${i}].status`, t.status, VALID_TXN_STATUSES);
+      return err(400, `transaction_history[${i}].amount must be a number.`);
+
+    let status: TransactionStatus;
+    if (t.status === undefined) {
+      status = "completed";
+    } else {
+      if (typeof t.status !== "string" || !VALID_TXN_STATUSES.has(t.status as TransactionStatus))
+        return err(400, `Invalid 'transaction_history[${i}].status'. Allowed: ${ALLOWED_TXN_STATUSES}.`);
+      status = t.status as TransactionStatus;
+    }
+
     txns.push({
       transaction_id: t.transaction_id,
       timestamp: t.timestamp,
@@ -140,6 +153,6 @@ function readTransactionHistory(raw: unknown): Transaction[] | undefined {
       counterparty: typeof t.counterparty === "string" ? t.counterparty : undefined,
       status,
     });
-  });
-  return txns;
+  }
+  return { ok: true, value: txns };
 }

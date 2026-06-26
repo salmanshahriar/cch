@@ -13,7 +13,6 @@ COPY tsconfig.json ./
 FROM oven/bun:1.3-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-ENV PORT=3000
 
 # Copy only what's needed at runtime.
 COPY --from=build /app/package.json ./
@@ -22,7 +21,9 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/src ./src
 COPY --from=build /app/tsconfig.json ./
 
-EXPOSE 3000
+# PORT is intentionally not defaulted here — the service refuses to start
+# without it. Pass it at run time, e.g.:
+#   docker run --rm -e PORT=8000 -p 8000:8000 queuestorm-investigator:latest
 
 # Bun runs TypeScript directly; no compile step needed.
 CMD ["bun", "run", "src/index.ts"]

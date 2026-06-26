@@ -74,7 +74,19 @@ app.onError((err, c) => {
 
 app.notFound((c) => c.json({ error: "Not found." }, 404));
 
-const port = Number(Bun.env.PORT ?? 3000);
+// PORT must be provided via the environment (e.g. `.env`). We deliberately
+// avoid a baked-in default so misconfiguration fails loudly at startup instead
+// of silently binding to a different port in different environments.
+const portRaw = Bun.env.PORT;
+if (portRaw === undefined || portRaw === "") {
+  console.error("Missing required env var 'PORT'. Set PORT in your environment (e.g. via .env) and restart.");
+  process.exit(1);
+}
+const port = Number(portRaw);
+if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+  console.error(`Invalid env var 'PORT': ${JSON.stringify(portRaw)}. Must be an integer in 1..65535.`);
+  process.exit(1);
+}
 console.log(`investigator listening on :${port}`);
 
 export default {
